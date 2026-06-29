@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Window-Cleaner Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <style>
+        /* Kunci halaman penuh 100% tanpa scroll utama */
+        html, body {
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; 
+            background-color: #121212;
+            color: #fff;
+        }
+
+        .dashboard {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            gap: 8px; 
+        }
+
+        .top-bar {
+            flex-shrink: 0; 
+            margin-bottom: 0 !important;
+            padding: 10px !important; 
+        }
+
+        .main-content {
+            display: flex;
+            flex-grow: 1; 
+            gap: 10px;
+            overflow: hidden;
+        }
+
+        /* --- KOLOM KIRI (Kamera + Log) --- */
+        .left-column {
+            flex: 3; 
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .camera-section {
+            flex-grow: 1; 
+            display: flex;
+            flex-direction: column;
+            margin: 0 !important;
+            padding: 10px !important;
+        }
+
+        .log-section {
+            flex-shrink: 0;
+            height: 22%; 
+            display: flex;
+            flex-direction: column;
+            margin: 0 !important;
+            padding: 10px !important;
+        }
+
+        /* --- KOLOM KANAN (Kontrol Padat) --- */
+        .controls-section {
+            flex: 1; 
+            overflow-y: auto; 
+            padding-right: 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px; 
+        }
+        
+        .controls-section::-webkit-scrollbar { width: 4px; }
+        .controls-section::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+        
+        .panel {
+            margin-bottom: 0 !important;
+            padding: 10px !important; 
+        }
+
+        .panel h2 {
+            margin: 0 0 8px 0 !important;
+            font-size: 1.1em;
+        }
+
+        .slider-group {
+            background: #222; 
+            border-radius: 6px; 
+            padding: 8px 10px !important; 
+            margin-bottom: 5px !important;
+            box-sizing: border-box;
+        }
+
+        .slider-group label {
+            margin-bottom: 5px !important;
+            font-size: 13px !important;
+        }
+
+        .action-btn {
+            padding: 8px !important;
+            font-size: 13px !important;
+            border-radius: 6px !important;
+            cursor: pointer;
+        }
+
+        .row-buttons {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+        }
+        
+        .row-buttons button {
+            flex: 1; 
+            margin: 0 !important;
+        }
+    </style>
+</head>
+
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: http://*:* http:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' mqtt: ws: wss: http: webrtc:;">
+
+<body>
+    <div class="dashboard">
+        
+        <header class="top-bar panel">
+            <h1 style="margin:0 0 5px 0; font-size:1.3em;">[SMART WINDOW-CLEANER DASHBOARD]</h1>
+            <div class="status-bar">
+                <span>Koneksi: [<span id="statusIndicator" class="disconnected">DISCONNECTED</span>]</span>
+                <span class="ip-input-group">
+                    <input type="text" id="brokerIp" placeholder="192.168.1.x" style="padding:3px;">
+                    <button id="btnConnect" style="padding:3px 8px;">HUBUNGKAN</button>
+                </span>
+                <span>Pompa: [<span id="pumpStatusTop" style="color: #ff4444;">OFF</span>]</span>
+                <span>Vakum: [<span id="vacuumStatusTop" style="color: #ff4444;">OFF</span>]</span>
+                <span>Sikat: [<span id="cleanerStatusTop" style="color: #ff4444;">OFF</span>]</span>
+            </div>
+        </header>
+
+        <main class="main-content">
+            
+            <div class="left-column">
+                <section class="panel camera-section">
+                    <h2>LIVE CAMERA FEED</h2>
+                    <div class="camera-container" style="flex-grow: 1; background-color: #000; border-radius: 6px; display: flex; justify-content: center; align-items: center; overflow: hidden;">
+                        <img id="cameraStream" src="" alt="Menunggu Video..." style="width: 100%; height: 100%; object-fit: contain;">
+                    </div>
+                </section>
+
+                <footer class="panel log-section">
+                    <h2>SYSTEM LOG:</h2>
+                    <textarea id="logTerminal" readonly style="flex-grow: 1; width: 100%; resize: none; padding: 8px; box-sizing: border-box; border-radius: 6px; font-family: monospace; background-color: #1e1e1e; color: #00ff00; border: 1px solid #333; font-size: 12px;"></textarea>
+                </footer>
+            </div>
+
+            <aside class="controls-section">
+                
+                <section class="panel nav-panel" style="text-align: center;">
+                    <h2>NAVIGASI</h2>
+                    <div class="d-pad" style="transform: scale(0.9); transform-origin: top center; margin-bottom: -15px;">
+                        <button id="btnUp" class="nav-btn">[UP]<br>▲</button>
+                        <div class="d-pad-middle">
+                            <button id="btnLeft" class="nav-btn">◀<br>[LEFT]</button>
+                            <button id="btnStop" class="btn-danger">[STOP]</button>
+                            <button id="btnRight" class="nav-btn">▶<br>[RIGHT]</button>
+                        </div>
+                        <button id="btnDown" class="nav-btn">▼<br>[DOWN]</button>
+                    </div>
+                </section>
+
+                <section class="panel motor-manual-panel">
+                    <h2>MANUAL MOTOR</h2>
+                    <div class="slider-group">
+                        <label for="motorSpeedSlider">
+                            Kecepatan Lilitan: <span id="motorSpeedValue" style="color: #ffcc00; font-weight: bold;">200</span> PWM
+                        </label>
+                        <input type="range" id="motorSpeedSlider" min="0" max="250" step="25" value="200" style="width: 100%; margin:0;">
+                    </div>
+
+                    <div class="motor-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        
+                        <div style="background: #222; padding: 8px; border-radius: 6px; text-align: center;">
+                            <p style="color: #4fc1ff; font-weight: bold; margin: 0 0 5px 0; font-size: 12px;">KIRI</p>
+                            <div class="row-buttons">
+                                <button id="btnMLCCW" class="action-btn" style="padding: 6px !important; line-height: 1.3;">
+                                    <strong>TARIK</strong><br>
+                                    <span style="font-size: 10px; color: #ccc;">CCW [U]</span>
+                                </button>
+                                <button id="btnMLCW" class="action-btn" style="padding: 6px !important; line-height: 1.3;">
+                                    <strong>ULUR</strong><br>
+                                    <span style="font-size: 10px; color: #ccc;">CW [I]</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style="background: #222; padding: 8px; border-radius: 6px; text-align: center;">
+                            <p style="color: #4fc1ff; font-weight: bold; margin: 0 0 5px 0; font-size: 12px;">KANAN</p>
+                            <div class="row-buttons">
+                                <button id="btnMRCW" class="action-btn" style="padding: 6px !important; line-height: 1.3;">
+                                    <strong>ULUR</strong><br>
+                                    <span style="font-size: 10px; color: #ccc;">CCW [O]</span>
+                                </button>
+                                <button id="btnMRCCW" class="action-btn" style="padding: 6px !important; line-height: 1.3;">
+                                    <strong>TARIK</strong><br>
+                                    <span style="font-size: 10px; color: #ccc;">CW [P]</span>
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+                <section class="panel action-panel">
+                    <h2>AKSI PEMBERSIH</h2>
+                    <div class="row-buttons" style="margin-bottom: 5px;">
+                        <button id="btnTogglePump" class="action-btn" style="background-color: #f44336;"> POMPA [Z]</button>
+                        <button id="btnToggleVacuum" class="action-btn" style="background-color: #f44336;">( ) VAKUM [X]</button>
+                    </div>
+                    <div class="slider-group">
+                        <label for="vacuumSpeedSlider">
+                            Daya Hisap: <span id="vacuumSpeedValue" style="color: #4fc1ff; font-weight: bold;">1000</span> µs
+                        </label>
+                        <input type="range" id="vacuumSpeedSlider" min="1000" max="2000" step="50" value="1000" style="width: 100%; margin:0;">
+                    </div>
+                </section>
+
+                <section class="panel cleaner-panel">
+                    <h2>MOTOR SIKAT</h2>
+                    <button id="btn-cleaner" class="action-btn" style="width: 100%; background-color: #f44336; margin-bottom: 5px;">( ) SIKAT: OFF [C]</button>
+                    <div class="slider-group" style="margin-bottom:0 !important;">
+                        <label for="slider-cleaner">
+                            Kecepatan Putaran: <span id="label-cleaner-speed" style="color: #ffcc00; font-weight: bold;">200</span> PWM
+                        </label>
+                        <input type="range" id="slider-cleaner" min="0" max="255" step="5" value="200" style="width: 100%; margin:0;">
+                    </div>
+                </section>
+
+            </aside>
+        </main>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>
